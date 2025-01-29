@@ -1,181 +1,224 @@
 import randomUseragent from 'random-useragent';
-import axios from 'axios';
 import log from './logger.js';
-import {
-    newAgent
-} from './helper.js'
+import { newAgent } from './helper.js';
 
 const userAgent = randomUseragent.getRandom();
 const headers = {
-    "Accept": "application/json",
-    "Accept-Language": "en-US,en;q=0.9",
-    "User-Agent": userAgent,
-}
+    'accept': 'application/json',
+    'user-agent': userAgent,
+    Origin: "chrome-extension://pjlappmodaidbdjhmhifbnnmmkkicjoc",
+    "Content-Length": 18,
+};
 
-export const registerUser = async (email, password) => {
+const fetchWithTimeout = async (url, options = {}, timeout = 60000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+};
+
+export const registerUser = async (email, password, proxy) => {
+    const agent = newAgent(proxy);
     const url = 'https://api.depined.org/api/user/register';
-
     try {
-        const response = await axios.post(url, { email, password }, {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
             headers: {
                 ...headers,
-                'Content-Type': 'application/json'
-            }
+                'Content-Type': 'application/json',
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({ email, password }),
+            agent,
         });
-        log.info('User registered successfully:', response.data.message);
-        return response.data;
+        const data = await response.json();
+        log.info('User registered successfully:', data.message);
+        return data;
     } catch (error) {
-        log.error('Error registering user:', error.response ? error.response.data : error.message);
+        log.error('Error registering user:', error.message || error);
         return null;
     }
 };
 
-export const loginUser = async (email, password) => {
+export const loginUser = async (email, password, proxy) => {
+    const agent = newAgent(proxy);
     const url = 'https://api.depined.org/api/user/login';
-
     try {
-        const response = await axios.post(url, { email, password }, {
-            headers: {
-                ...headers,
-                'Content-Type': 'application/json'
-            }
-        });
-        log.info('User Login successfully:', response.data.message);
-        return response.data;
-    } catch (error) {
-        log.error('Error Login user:', error.response ? error.response.data : error.message);
-        return null;
-    }
-};
-
-export const createUserProfile = async (token, payload) => {
-    const url = 'https://api.depined.org/api/user/profile-creation';
-
-    try {
-        const response = await axios.post(url, payload, {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
             headers: {
                 ...headers,
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({ email, password }),
+            agent,
         });
-        log.info('Profile created successfully:', payload);
-        return response.data;
+        const data = await response.json();
+        log.info('User Login successfully:', data.message);
+        return data;
     } catch (error) {
-        log.error('Error creating profile:', error.response ? error.response.data : error.message);
-        return null;
-    }
-};
-
-export const confirmUserReff = async (token, referral_code) => {
-    const url = 'https://api.depined.org/api/access-code/referal';
-
-    try {
-        const response = await axios.post(url, { referral_code }, {
-            headers: {
-                ...headers,
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        log.info('Confirm User referral successfully:', response.data.message);
-        return response.data;
-    } catch (error) {
-        log.error('Error Confirm User referral:', error.response ? error.response.data : error.message);
+        log.error('Error Login user:', error.message || error);
         return null;
     }
 };
 
 export async function getUserInfo(token, proxy) {
     const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/user/details';
     try {
-        const response = await axios.get('https://api.depined.org/api/user/details', {
+        const response = await fetchWithTimeout(url, {
+            method: 'GET',
             headers: {
                 ...headers,
-                'Authorization': 'Bearer ' + token
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
             },
-            httpsAgent: agent,
-            httpAgent: agent
+            agent,
         });
-
-        return response.data;
+        return await response.json();
     } catch (error) {
         log.error('Error fetching user info:', error.message || error);
         return null;
     }
 }
-export async function getUserRef(token, proxy) {
+
+export const createUserProfile = async (token, payload, proxy) => {
     const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/user/profile-creation';
     try {
-        const response = await axios.get('https://api.depined.org/api/referrals/stats', {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
             headers: {
                 ...headers,
-                'Authorization': 'Bearer ' + token
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
             },
-            httpsAgent: agent,
-            httpAgent: agent
+            body: JSON.stringify(payload),
+            agent,
         });
-
-        return response.data;
+        const data = await response.json();
+        log.info('Profile created successfully:', payload);
+        return data;
     } catch (error) {
-        log.error('Error fetching user info:', error.message || error);
+        log.error('Error creating profile:', error.message || error);
         return null;
     }
-}
-export async function getEarnings(token, proxy) {
+};
+
+export const confirmUserReff = async (token, referral_code, proxy) => {
     const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/access-code/referal';
     try {
-        const response = await axios.get('https://api.depined.org/api/stats/epoch-earnings', {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
             headers: {
                 ...headers,
-                'Authorization': 'Bearer ' + token
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
             },
-            httpsAgent: agent,
-            httpAgent: agent
+            body: JSON.stringify({ referral_code }),
+            agent,
         });
-
-        return response.data;
+        const data = await response.json();
+        log.info('Confirm User referral successfully:', data.message);
+        return data;
     } catch (error) {
-        log.error('Error fetching user info:', error.message || error);
+        log.error('Error Confirm User referral:', error.message || error);
         return null;
     }
-}
-export async function connect(token, proxy) {
+};
+
+export const getUserRef = async (token, proxy) => {
     const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/referrals/stats';
     try {
-        const payload = { connected: true }
-        const response = await axios.post('https://api.depined.org/api/user/widget-connect', payload, {
+        const response = await fetchWithTimeout(url, {
+            method: 'GET',
             headers: {
                 ...headers,
-                'Authorization': 'Bearer ' + token
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
             },
-            httpsAgent: agent,
-            httpAgent: agent
+            agent,
         });
-
-        return response.data;
+        return await response.json();
     } catch (error) {
-        log.error(`Error when update connection: ${error.message}`);
+        log.error('Error fetching referral stats:', error.message || error);
         return null;
     }
-} 
+};
 
-export async function claimPoints(token, proxy) {
+export const getEarnings = async (token, proxy) => {
     const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/stats/epoch-earnings';
     try {
-        const payload = {}
-        const response = await axios.post('https://api.depined.org/api/referrals/claim_points', payload, {
+        const response = await fetchWithTimeout(url, {
+            method: 'GET',
             headers: {
                 ...headers,
-                'Authorization': 'Bearer ' + token
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
             },
-            httpsAgent: agent,
-            httpAgent: agent
+            agent,
         });
-
-        return response.data;
+        return await response.json();
     } catch (error) {
-        log.error(`Error when claiming points: ${error.message}`);
+        log.error('Error fetching earnings:', error.message || error);
         return null;
     }
-}
+};
+
+export const connect = async (token, proxy) => {
+    const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/user/widget-connect';
+    try {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({ connected: true }),
+            agent,
+        });
+        const data = await response.json();
+        log.info('User connected successfully.');
+        return data;
+    } catch (error) {
+        log.error(`Error updating connection: ${error.message}`);
+        return null;
+    }
+};
+
+export const claimPoints = async (token, proxy) => {
+    const agent = newAgent(proxy);
+    const url = 'https://api.depined.org/api/referrals/claim_points';
+    try {
+        const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Authorization': `Bearer ${token}`,
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({}),
+            agent,
+        });
+        const data = await response.json();
+        log.info('Points claimed successfully.');
+        return data;
+    } catch (error) {
+        log.error(`Error claiming points: ${error.message}`);
+        return null;
+    }
+};

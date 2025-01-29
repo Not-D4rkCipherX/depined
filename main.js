@@ -19,7 +19,8 @@ const main = async () => {
     try {
         log.info(`Starting Program for all accounts:`, tokens.length);
 
-        const accountsProcessing = tokens.map(async (token, index) => {
+        for (let index = 0; index < tokens.length; index++) {
+            const token = tokens[index]
             const proxy = proxies[index % proxies.length] || null;
             try {
                 const userData = await utils.getUserInfo(token, proxy);
@@ -46,7 +47,7 @@ const main = async () => {
             } catch (error) {
                 log.error(`Error processing account ${index}: ${error.message}`);
             }
-        });
+        };
 
         await Promise.all(accountsProcessing);
     } catch (error) {

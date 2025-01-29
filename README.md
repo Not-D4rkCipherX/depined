@@ -2,6 +2,22 @@
 
 ![banner](image.png)
 
+## UPDATE to use python
+1. **git pull**
+    ```bash
+    git pull
+    ```
+2. **Install Requirements:**
+   ```bash
+   pip install -r requirements.txt #or pip3 install -r requirements.txt
+   ```
+3. **Run**
+    ```bash
+    python bot.py #or python3 bot.py 
+    ```
+## Repo Source @vonsyy:
+- https://github.com/vonssy/DePINed-BOT
+
 ## Features
 
 - **Auto Ping Widget Connection**
